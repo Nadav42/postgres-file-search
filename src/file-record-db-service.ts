@@ -50,14 +50,19 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQuery(query: string): Promise<FileRecord[]> {
+    async findBySearchQuery(searchStr: string): Promise<FileRecord[]> {
         try {
             const connection = getConnection();
-            return await connection.getRepository(FileRecord)
-                .createQueryBuilder("fileRecord")
-                .where("LOWER(fileRecord.path) like LOWER(:word)", { word: "%STEAM%" })
-                .andWhere("LOWER(fileRecord.path) like LOWER(:word2)", { word2: "%2%" })
-                .getMany();
+            let query = connection.getRepository(FileRecord).createQueryBuilder("fileRecord");
+            searchStr.split(" ").forEach((word, index) => {
+                const variableName = `word${index}`;
+                if (index === 0) {
+                    query = query.where(`LOWER(fileRecord.path) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                } else {
+                    query = query.andWhere(`LOWER(fileRecord.path) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                }
+            });
+            return await query.getMany();
         } catch (error) {
             console.log(error);
         }
