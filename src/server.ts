@@ -1,21 +1,21 @@
 import "reflect-metadata";
 import { createConnection } from "typeorm";
-import { User } from "./entity/User";
+import { FileRecord } from "./entity/FileRecord";
 
 createConnection().then(async (connection) => {
-    console.log("Inserting a new user into the database...");
+    console.log("Inserting a new fileRecord into the database...");
 
-    const user = new User();
-    user.firstName = "Timber";
-    user.lastName = "Saw";
-    user.age = 25;
-    await connection.manager.save(user);
+    const fileRecord = new FileRecord();
+    fileRecord.path = "C:/Users/Nadav/Downloads/SteamSetup2.exe";
+    fileRecord.createdAt = new Date();
+    fileRecord.modifiedAt = new Date();
+    fileRecord.size = 500;
 
-    console.log("Saved a new user with id: " + user.id);
+    await connection.manager.save(fileRecord); // this will upsert by the primary key - if exists it will update modified date, size etc
+    console.log("Saved a new fileRecord:", fileRecord);
 
-    console.log("Loading users from the database...");
-    const users = await connection.manager.find(User);
-    console.log("Loaded users: ", users);
+    console.log("Loading all from the database...");
+    const fileRecords = await connection.manager.find(FileRecord);
 
-    console.log("Here you can setup and run express/koa/any other framework.");
+    console.log("Loaded fileRecords: ", fileRecords);
 }).catch(error => console.log(error));

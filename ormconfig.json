@@ -2,11 +2,11 @@
    "type": "postgres",
    "host": "localhost",
    "port": 5432,
-   "username": "test",
+   "username": "postgres",
    "password": "123567",
-   "database": "test",
+   "database": "fileDB",
    "synchronize": true,
-   "logging": false,
+   "logging": "all",
    "entities": [
       "src/entity/**/*.ts"
    ],
