@@ -1,21 +1,33 @@
-import "reflect-metadata";
-import { createConnection } from "typeorm";
-import { FileRecord } from "./entity/FileRecord";
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import path from 'path';
+import { fileRecordDBService } from './file-record-db-service';
 
-createConnection().then(async (connection) => {
-    console.log("Inserting a new fileRecord into the database...");
+const app = express();
+const PORT = 8000;
 
-    const fileRecord = new FileRecord();
-    fileRecord.path = "C:/Users/Nadav/Downloads/SteamSetup2.exe";
-    fileRecord.createdAt = new Date();
-    fileRecord.modifiedAt = new Date();
-    fileRecord.size = 500;
+// middlewares
+app.use((cors() as any));
+app.use(bodyParser.json()); // support json encoded bodies
+app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
-    await connection.manager.save(fileRecord); // this will upsert by the primary key - if exists it will update modified date, size etc
-    console.log("Saved a new fileRecord:", fileRecord);
+app.get('/api/v1/fileRecords', async (req, res) => {
+    const fileRecords = await fileRecordDBService.findAll();
+    res.json(fileRecords);
+});
 
-    console.log("Loading all from the database...");
-    const fileRecords = await connection.manager.find(FileRecord);
+app.get('/api/v1/fileRecords/insert', async (req, res) => {
+    fileRecordDBService.insertFileRecord("C:/Users/Nadav/Downloads/Steam2.exe", new Date(), new Date(), Math.floor(Math.random() * 1000));
+    res.json({ msg: "hello", params: req.params });
+});
 
-    console.log("Loaded fileRecords: ", fileRecords);
-}).catch(error => console.log(error));
+app.get('/api/v1/fileRecords/:query?', async (req, res) => {
+    const fileRecords = await fileRecordDBService.findBySearchQuery(req.params.query);
+    res.json(fileRecords);
+});
+
+// start server
+app.listen(PORT, () => {
+    console.log(`⚡️[server]: Server is running at https://localhost:${PORT}`);
+});
