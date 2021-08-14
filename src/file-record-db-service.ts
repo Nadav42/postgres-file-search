@@ -2,6 +2,13 @@ import "reflect-metadata";
 import { Connection, createConnection, getConnection } from "typeorm";
 import { FileRecord } from "./entity/FileRecord";
 
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+const sleepForMS = 5000;
+const MAX_SLEEP_RETRIES = 4;
+
 class FileRecordDBService {
     private connection: Connection;
 
@@ -18,7 +25,18 @@ class FileRecordDBService {
         }
     }
 
+    async waitForInit() {
+        let tries = 0;
+        while (tries < MAX_SLEEP_RETRIES && (!this.connection || !this.connection.isConnected)) {
+            console.log(`db not initialized, sleeping ${sleepForMS}ms`);
+            tries = tries + 1;
+            await sleep(sleepForMS);
+        }
+    }
+
     async insertFileRecord(filePath: string, createdAt: Date, modifiedAt: Date, size: number): Promise<FileRecord> {
+        await this.waitForInit();
+
         try {
             const connection = getConnection();
             console.log("Inserting a new fileRecord into the database -", filePath);
@@ -40,6 +58,8 @@ class FileRecordDBService {
     }
 
     async findAll(): Promise<FileRecord[]> {
+        await this.waitForInit();
+
         try {
             const connection = getConnection();
             return await connection.manager.find(FileRecord);
@@ -51,6 +71,8 @@ class FileRecordDBService {
     }
 
     async findBySearchQuery(searchStr: string): Promise<FileRecord[]> {
+        await this.waitForInit();
+
         try {
             const connection = getConnection();
             let query = connection.getRepository(FileRecord).createQueryBuilder("fileRecord");
