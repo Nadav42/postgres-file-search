@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import path from 'path';
 import { fileRecordDBService } from './file-record-db-service';
 
 const app = express();
@@ -18,7 +17,7 @@ app.get('/api/v1/fileRecords', async (req, res) => {
 });
 
 app.get('/api/v1/fileRecords/insert', async (req, res) => {
-    fileRecordDBService.insertFileRecord("C:/Users/Nadav/Downloads/Steam2.exe", new Date(), new Date(), Math.floor(Math.random() * 1000));
+    fileRecordDBService.insertFileRecord("C:/Users/Nadav/Downloads/Test.exe", new Date(), new Date(), Math.floor(Math.random() * 1000));
     res.json({ msg: "hello", params: req.params });
 });
 
