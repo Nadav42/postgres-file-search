@@ -35,8 +35,8 @@ class FolderScanner {
 		const stats = fs.statSync(filePath);
 
 		if (stats.isFile()) {
-			console.log(filePath, stats.ctime, stats.mtime, stats.size);
-			await fileRecordDBService.insertFileRecord(filePath, stats.ctime, stats.mtime, stats.size);
+			console.log(filePath, stats.birthtime, stats.mtime, stats.size);
+			await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
 		} else if (stats.isDirectory()) {
 			console.log("found directory:", filePath);
 			await this.scanDirectoryRecursive(filePath);
