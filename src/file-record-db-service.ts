@@ -80,16 +80,19 @@ class FileRecordDBService {
 
         try {
             const connection = getConnection();
-            let query = connection.getRepository(FileRecord).createQueryBuilder("fileRecord");
+            let query1 = connection.getRepository(FileRecord).createQueryBuilder("fileRecord");
+            let query2 = connection.getRepository(FileRecord).createQueryBuilder("fileRecord2");
+
             searchStr.split(" ").forEach((word, index) => {
-                const variableName = `word${index}`;
                 if (index === 0) {
-                    query = query.where(`LOWER(fileRecord.path) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                    query1 = query1.where(`LOWER(fileRecord.path) like LOWER('%${word}%')`);
+                    query2 = query2.where(`LOWER(fileRecord2.filteredPath) like LOWER('%${word}%')`);
                 } else {
-                    query = query.andWhere(`LOWER(fileRecord.path) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                    query1 = query1.andWhere(`LOWER(fileRecord.path) like LOWER('%${word}%')`);
+                    query2 = query2.andWhere(`LOWER(fileRecord2.filteredPath) like LOWER('%${word}%'))`);
                 }
             });
-            return await query.getMany();
+            return await connection.getRepository(FileRecord).query(`${query2.getQuery()} UNION ALL ${query1.getQuery()}`);
         } catch (error) {
             console.log(error);
         }
