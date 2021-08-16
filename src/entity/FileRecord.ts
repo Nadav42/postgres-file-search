@@ -4,7 +4,6 @@ import { Entity, PrimaryColumn, Column } from "typeorm";
 export class FileRecord {
     @PrimaryColumn()
     path: string;
-
     @Column()
     filteredPath: string;
 

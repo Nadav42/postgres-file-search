@@ -78,6 +78,22 @@ class FileRecordDBService {
     async findBySearchQuery(searchStr: string): Promise<FileRecord[]> {
         await this.waitForInit();
 
+        const filteredResults = await this.findBySearchQueryFiltered(searchStr);
+        const fullResults = await this.findBySearchQueryFull(searchStr);
+        const results = [...filteredResults, ...fullResults];
+
+        // remove duplicates
+        const alreadyExists = new Set();
+        const removedDuplicates = results.filter(item => {
+            return alreadyExists.has(item.path) ? false : alreadyExists.add(item.path);
+        });
+
+        return removedDuplicates;
+    }
+
+    async findBySearchQueryFull(searchStr: string): Promise<FileRecord[]> {
+        await this.waitForInit();
+
         try {
             const connection = getConnection();
             let query = connection.getRepository(FileRecord).createQueryBuilder("fileRecord");
@@ -87,6 +103,28 @@ class FileRecordDBService {
                     query = query.where(`LOWER(fileRecord.path) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 } else {
                     query = query.andWhere(`LOWER(fileRecord.path) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                }
+            });
+            return await query.getMany();
+        } catch (error) {
+            console.log(error);
+        }
+
+        return [];
+    }
+
+    async findBySearchQueryFiltered(searchStr: string): Promise<FileRecord[]> {
+        await this.waitForInit();
+
+        try {
+            const connection = getConnection();
+            let query = connection.getRepository(FileRecord).createQueryBuilder("fileRecord");
+            searchStr.split(" ").forEach((word, index) => {
+                const variableName = `word${index}`;
+                if (index === 0) {
+                    query = query.where(`LOWER(fileRecord.filteredPath) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                } else {
+                    query = query.andWhere(`LOWER(fileRecord.filteredPath) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
             return await query.getMany();
