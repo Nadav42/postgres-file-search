@@ -6,6 +6,10 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function prepareFilteredPath(path: string) {
+    return path.split("/").splice(-2).join("/");
+}
+
 const sleepForMS = 5000;
 const MAX_SLEEP_RETRIES = 4;
 
@@ -45,6 +49,7 @@ class FileRecordDBService {
             fileRecord.path = filePath;
             fileRecord.createdAt = createdAt;
             fileRecord.modifiedAt = modifiedAt;
+            fileRecord.filteredPath = prepareFilteredPath(filePath);
             fileRecord.size = size;
 
             await connection.manager.save(fileRecord); // this will upsert by the primary key - if exists it will update modified date, size etc

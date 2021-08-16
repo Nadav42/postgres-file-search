@@ -17,8 +17,8 @@ app.get('/api/v1/fileRecords', async (req, res) => {
 });
 
 app.get('/api/v1/fileRecords/insert', async (req, res) => {
-    fileRecordDBService.insertFileRecord("C:/Users/Nadav/Downloads/Test.exe", new Date(), new Date(), Math.floor(Math.random() * 1000));
-    res.json({ msg: "hello", params: req.params });
+    const fileRecord = fileRecordDBService.insertFileRecord("C:/Users/Nadav/Downloads/Test.exe", new Date(), new Date(), Math.floor(Math.random() * 1000));
+    res.json(fileRecord);
 });
 
 app.get('/api/v1/fileRecords/:query?', async (req, res) => {

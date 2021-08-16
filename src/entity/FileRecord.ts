@@ -2,9 +2,11 @@ import { Entity, PrimaryColumn, Column } from "typeorm";
 
 @Entity()
 export class FileRecord {
-
     @PrimaryColumn()
     path: string;
+
+    @Column()
+    filteredPath: string;
 
     @Column()
     createdAt: Date;
@@ -14,5 +16,4 @@ export class FileRecord {
 
     @Column()
     size: number;
-
 }
