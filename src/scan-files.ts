@@ -16,16 +16,12 @@ class FolderScanner {
 			return;
 		}
 
-		fs.readdir(directoryPath, async (err, files) => {
-			//handling error
-			if (err) {
-				console.log('Unable to scan directory: ' + err, directoryPath);
-				return
-			}
-
-			// iterate all files
+		try {
+			const files = fs.readdirSync(directoryPath);
 			await this.processFiles(directoryPath, files, depth, maxDepth);
-		});
+		} catch (error) {
+			console.log('Unable to scan directory: ' + error, directoryPath);
+		}
 	}
 
 	async processFiles(directoryPath: string, files: string[], depth: number, maxDepth: number) {
@@ -37,14 +33,18 @@ class FolderScanner {
 
 	async processFile(directoryPath: string, file: string, depth: number, maxDepth: number) {
 		const filePath = `${directoryPath}/${file}`;
-		const stats = fs.statSync(filePath);
+		try {
+			const stats = fs.statSync(filePath);
 
-		if (stats.isFile()) {
-			console.log(filePath, stats.birthtime, stats.mtime, stats.size);
-			await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
-		} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
-			console.log("found directory:", filePath);
-			await this.scanDirectoryRecursive(filePath, depth + 1, maxDepth);
+			if (stats.isFile()) {
+				console.log(filePath, stats.birthtime, stats.mtime, stats.size);
+				await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+			} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
+				console.log("found directory:", filePath);
+				await this.scanDirectoryRecursive(filePath, depth + 1, maxDepth);
+			}
+		} catch (error) {
+			console.log(error);
 		}
 	}
 }
