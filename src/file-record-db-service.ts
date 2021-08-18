@@ -132,7 +132,7 @@ class FileRecordDBService {
                     query = query.andWhere(`fileRecord.preFilteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
-            return await query.limit(limit).getMany();
+            return await query.orderBy('fileRecord.createdAt', 'DESC').limit(limit).getMany();
         } catch (error) {
             console.log(error);
         }
@@ -154,7 +154,7 @@ class FileRecordDBService {
                     query = query.andWhere(`fileRecord.filteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
-            return await query.limit(limit).getMany();
+            return await query.orderBy('fileRecord.createdAt', 'DESC').limit(limit).getMany();
         } catch (error) {
             console.log(error);
         }
