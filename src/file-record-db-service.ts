@@ -45,18 +45,23 @@ class FileRecordDBService {
     }
 
     async createCustomIndexes(): Promise<void> {
+        console.log("Creating indexes");
+        await this.execCustomQuery(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+        await this.execCustomQuery(`CREATE INDEX IF NOT EXISTS path_pre_filtered_trgm_gin_index ON file_record USING GIN("preFilteredPath" gin_trgm_ops);`);
+        await this.execCustomQuery(`CREATE INDEX IF NOT EXISTS path_filtered_trgm_gin_index ON file_record USING GIN("filteredPath" gin_trgm_ops);`);
+
+    }
+
+    // custom query with error handling
+    async execCustomQuery(query: string): Promise<void> {
         await this.waitForInit();
 
         try {
             const connection = getConnection();
-            console.log("Creating indexes");
-            await connection.manager.query(`CREATE INDEX IF NOT EXISTS path_pre_filtered_trgm_gin_index ON file_record USING GIN("preFilteredPath" gin_trgm_ops);`)
-            await connection.manager.query(`CREATE INDEX IF NOT EXISTS path_filtered_trgm_gin_index ON file_record USING GIN("filteredPath" gin_trgm_ops);`)
+            await connection.manager.query(query)
         } catch (error) {
             console.log(error);
         }
-
-        return null;
     }
 
     async insertFileRecord(filePath: string, createdAt: Date, modifiedAt: Date, size: number): Promise<FileRecord> {
@@ -118,7 +123,7 @@ class FileRecordDBService {
         if (limit <= 0) {
             return [];
         }
-        
+
         await this.waitForInit();
 
         try {
