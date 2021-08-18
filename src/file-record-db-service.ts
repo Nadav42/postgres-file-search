@@ -10,6 +10,11 @@ function prepareFilteredPath(path: string) {
     return path.split("/").splice(-2).join("/");
 }
 
+function preparePreFilteredPath(path: string) {
+    return path.split("/").splice(0, path.split("/").length - 2).join("/");
+}
+
+
 const sleepForMS = 5000;
 const MAX_SLEEP_RETRIES = 4;
 
@@ -45,7 +50,7 @@ class FileRecordDBService {
         try {
             const connection = getConnection();
             console.log("Creating indexes");
-            await connection.manager.query(`CREATE INDEX IF NOT EXISTS path_lower_trgm_gin_index ON file_record USING GIN("pathLower" gin_trgm_ops);`)
+            await connection.manager.query(`CREATE INDEX IF NOT EXISTS path_pre_filtered_trgm_gin_index ON file_record USING GIN("preFilteredPath" gin_trgm_ops);`)
             await connection.manager.query(`CREATE INDEX IF NOT EXISTS path_filtered_trgm_gin_index ON file_record USING GIN("filteredPath" gin_trgm_ops);`)
         } catch (error) {
             console.log(error);
@@ -67,6 +72,7 @@ class FileRecordDBService {
             fileRecord.modifiedAt = modifiedAt;
             fileRecord.pathLower = filePath.toLowerCase();
             fileRecord.filteredPath = prepareFilteredPath(filePath).toLowerCase();
+            fileRecord.preFilteredPath = preparePreFilteredPath(filePath).toLowerCase();
             fileRecord.size = size;
 
             await connection.manager.save(fileRecord); // this will upsert by the primary key - if exists it will update modified date, size etc
@@ -92,10 +98,11 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQuery(searchStr: string, limit: number = 100): Promise<FileRecord[]> {
+    async findBySearchQuery(searchStr: string, limit: number = 50): Promise<FileRecord[]> {
         await this.waitForInit();
 
-        const [filteredResults, fullResults] = await Promise.all([this.findBySearchQueryFiltered(searchStr), this.findBySearchQueryFull(searchStr)]);
+        const filteredResults = await this.findBySearchQueryFiltered(searchStr, limit);
+        const fullResults = await this.findBySearchQueryFull(searchStr, limit - filteredResults.length);
         const results = [...filteredResults, ...fullResults];
 
         // remove duplicates
@@ -107,7 +114,11 @@ class FileRecordDBService {
         return removedDuplicates;
     }
 
-    async findBySearchQueryFull(searchStr: string): Promise<FileRecord[]> {
+    async findBySearchQueryFull(searchStr: string, limit: number): Promise<FileRecord[]> {
+        if (limit <= 0) {
+            return [];
+        }
+        
         await this.waitForInit();
 
         try {
@@ -116,12 +127,12 @@ class FileRecordDBService {
             searchStr.split(" ").forEach((word, index) => {
                 const variableName = `word${index}`;
                 if (index === 0) {
-                    query = query.where(`fileRecord.pathLower like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                    query = query.where(`fileRecord.preFilteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 } else {
-                    query = query.andWhere(`fileRecord.pathLower like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                    query = query.andWhere(`fileRecord.preFilteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
-            return await query.getMany();
+            return await query.limit(limit).getMany();
         } catch (error) {
             console.log(error);
         }
@@ -129,7 +140,7 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQueryFiltered(searchStr: string): Promise<FileRecord[]> {
+    async findBySearchQueryFiltered(searchStr: string, limit: number): Promise<FileRecord[]> {
         await this.waitForInit();
 
         try {
@@ -143,7 +154,7 @@ class FileRecordDBService {
                     query = query.andWhere(`fileRecord.filteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
-            return await query.getMany();
+            return await query.limit(limit).getMany();
         } catch (error) {
             console.log(error);
         }
