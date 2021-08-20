@@ -21,6 +21,10 @@ export class FileRecord {
     @Column()
     filteredPath: string;
 
+    @Index()
+    @Column()
+    extension: string;
+
     @Column()
     createdAt: Date;
 

@@ -2,7 +2,8 @@ import fs from 'fs';
 import { fileRecordDBService } from './file-record-db-service';
 
 //joining path of directory 
-const directoryPath = "C:/Program Files (x86)/Steam";
+const directoryPath = "C:/Program Files (x86)";
+const MIN_SIZE_IN_BYTES = 50 * 1024; // at least X kb
 
 class FolderScanner {
 	scannedFiles: number = 0;
@@ -41,12 +42,20 @@ class FolderScanner {
 
 	processFile(directoryPath: string, file: string, depth: number, maxDepth: number) {
 		const filePath = `${directoryPath}/${file}`;
+
+		if (!this.shouldScanFile(filePath)) {
+			return;
+		}
+
 		fs.stat(filePath, async (err, stats) => {
 			if (!err) {
 				if (stats.isFile()) {
 					this.scannedFiles = this.scannedFiles + 1;
-					// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
-					await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+					const hasExtension = filePath.includes(".");
+					if (hasExtension && stats.size > MIN_SIZE_IN_BYTES) {
+						// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
+						await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+					}
 				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
 					this.scannedFolders = this.scannedFolders + 1;
 					this.scanDirectoryRecursive(filePath, depth + 1, maxDepth);
@@ -55,6 +64,17 @@ class FolderScanner {
 				console.log(err);
 			}
 		});
+	}
+
+	shouldScanFile(filePath: string) {
+		const hasExtension = filePath.includes(".");
+
+		if (!hasExtension) {
+			return true; // it's most likely a directory so continue the check... if directory or not..
+		}
+
+		const extension = filePath.split(".").reverse()[0].toLowerCase();
+		return ["exe", "zip", "msi", "rar", "tar", "tar.gz"].includes(extension);
 	}
 }
 
