@@ -2,7 +2,7 @@ import fs from 'fs';
 import { fileRecordDBService } from './file-record-db-service';
 
 //joining path of directory 
-const directoryPath = "C:/Program Files (x86)";
+const directoryPath = "C:/";
 const MIN_SIZE_IN_BYTES = 50 * 1024; // at least X kb
 
 class FolderScanner {
@@ -44,6 +44,7 @@ class FolderScanner {
 		const filePath = `${directoryPath}/${file}`;
 
 		if (!this.shouldScanFile(filePath)) {
+			this.scannedFiles = this.scannedFiles + 1;
 			return;
 		}
 
@@ -74,7 +75,7 @@ class FolderScanner {
 		}
 
 		const extension = filePath.split(".").reverse()[0].toLowerCase();
-		return ["exe", "zip", "msi", "rar", "tar", "tar.gz"].includes(extension);
+		return ["exe", "zip", "msi", "rar", "tar", "tar.gz", "jar"].includes(extension);
 	}
 }
 
