@@ -2,52 +2,80 @@ import fs from 'fs';
 import { fileRecordDBService } from './file-record-db-service';
 
 //joining path of directory 
-const directoryPath = "C:/";
-console.log(directoryPath);
+const directoryPath = "C:/Program Files (x86)/Steam";
 
 class FolderScanner {
+	scannedFiles: number = 0;
+	scannedFolders: number = 0;
+
 	constructor() {
 
 	}
 
-	async scanDirectoryRecursive(directoryPath: string, depth: number = 0, maxDepth: number = 250) {
+	scanDirectoryRecursive(directoryPath: string, depth: number = 0, maxDepth: number = 250) {
+
 		if (depth > maxDepth) {
 			console.log("reached depth limit...");
 			return;
 		}
 
-		try {
-			const files = fs.readdirSync(directoryPath);
-			await this.processFiles(directoryPath, files, depth, maxDepth);
-		} catch (error) {
-			console.log('Unable to scan directory: ' + error, directoryPath);
+		if (depth <= 2) {
+			console.log("scanning directory:", directoryPath);
 		}
+
+		fs.readdir(directoryPath, (err, files) => {
+			if (!err) {
+				this.processFiles(directoryPath, files, depth, maxDepth);
+			} else {
+				console.log('Unable to scan directory: ' + err, directoryPath);
+			}
+		});
 	}
 
-	async processFiles(directoryPath: string, files: string[], depth: number, maxDepth: number) {
+	processFiles(directoryPath: string, files: string[], depth: number, maxDepth: number) {
 		for (let index = 0; index < files.length; index++) {
 			const file = files[index];
-			await this.processFile(directoryPath, file, depth, maxDepth);
+			this.processFile(directoryPath, file, depth, maxDepth);
 		}
 	}
 
-	async processFile(directoryPath: string, file: string, depth: number, maxDepth: number) {
+	processFile(directoryPath: string, file: string, depth: number, maxDepth: number) {
 		const filePath = `${directoryPath}/${file}`;
-		try {
-			const stats = fs.statSync(filePath);
-
-			if (stats.isFile()) {
-				console.log(filePath, stats.birthtime, stats.mtime, stats.size);
-				await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
-			} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
-				console.log("found directory:", filePath);
-				await this.scanDirectoryRecursive(filePath, depth + 1, maxDepth);
+		fs.stat(filePath, async (err, stats) => {
+			if (!err) {
+				if (stats.isFile()) {
+					this.scannedFiles = this.scannedFiles + 1;
+					// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
+					await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
+					this.scannedFolders = this.scannedFolders + 1;
+					this.scanDirectoryRecursive(filePath, depth + 1, maxDepth);
+				}
+			} else {
+				console.log(err);
 			}
-		} catch (error) {
-			console.log(error);
-		}
+		});
 	}
 }
 
-const scanner = new FolderScanner();
-scanner.scanDirectoryRecursive(directoryPath);
+const runProgram = async () => {
+	await fileRecordDBService.waitForInit();
+
+	console.log(directoryPath);
+
+	const start = Date.now();
+
+	const scanner = new FolderScanner();
+	scanner.scanDirectoryRecursive(directoryPath);
+
+	process.on('exit', () => {
+		const end = Date.now();
+		const timeTook = (end - start);
+		console.log(`finished ${directoryPath} in ${timeTook.toFixed(2)}ms`);
+		console.log(`scanned: files: ${scanner.scannedFiles} folders: ${scanner.scannedFolders}`);
+		console.log("exited");
+	});
+}
+
+
+runProgram();

@@ -69,7 +69,7 @@ class FileRecordDBService {
 
         try {
             const connection = getConnection();
-            console.log("Inserting a new fileRecord into the database -", filePath);
+            // console.log("Inserting a new fileRecord into the database -", filePath);
 
             const fileRecord = new FileRecord();
             fileRecord.path = filePath;
@@ -81,7 +81,7 @@ class FileRecordDBService {
             fileRecord.size = size;
 
             await connection.manager.save(fileRecord); // this will upsert by the primary key - if exists it will update modified date, size etc
-            console.log("saved a new fileRecord:", fileRecord);
+            // console.log("saved a new fileRecord:", fileRecord);
             return fileRecord;
         } catch (error) {
             console.log(error);

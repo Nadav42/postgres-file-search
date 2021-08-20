@@ -6,7 +6,7 @@
    "password": "123456789",
    "database": "fileDB",
    "synchronize": true,
-   "logging": "all",
+   "logging": ["error"],
    "entities": [
       "src/entity/**/*.ts"
    ],
