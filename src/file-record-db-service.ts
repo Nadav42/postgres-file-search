@@ -104,11 +104,11 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQuery(searchStr: string, limit: number = 50): Promise<FileRecord[]> {
+    async findBySearchQuery(searchStr: string, extensions: string[] | undefined, limit: number = 50): Promise<FileRecord[]> {
         await this.waitForInit();
 
-        const filteredResults = await this.findBySearchQueryFiltered(searchStr, limit);
-        const fullResults = await this.findBySearchQueryFull(searchStr, limit - filteredResults.length);
+        const filteredResults = await this.findBySearchQueryFiltered(searchStr, extensions, limit);
+        const fullResults = await this.findBySearchQueryFull(searchStr, extensions, limit - filteredResults.length);
         const results = [...filteredResults, ...fullResults];
 
         // remove duplicates
@@ -120,7 +120,7 @@ class FileRecordDBService {
         return removedDuplicates;
     }
 
-    async findBySearchQueryFull(searchStr: string, limit: number): Promise<FileRecord[]> {
+    async findBySearchQueryFull(searchStr: string, extensions: string[] | undefined, limit: number): Promise<FileRecord[]> {
         if (limit <= 0) {
             return [];
         }
@@ -138,6 +138,11 @@ class FileRecordDBService {
                     query = query.andWhere(`fileRecord.preFilteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
+
+            if (extensions && extensions.length) {
+                query = query.andWhere(`fileRecord.extension IN (:...extensions)`, { extensions });
+            }
+
             return await query.orderBy('fileRecord.createdAt', 'DESC').limit(limit).getMany();
         } catch (error) {
             console.log(error);
@@ -146,7 +151,7 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQueryFiltered(searchStr: string, limit: number): Promise<FileRecord[]> {
+    async findBySearchQueryFiltered(searchStr: string, extensions: string[] | undefined, limit: number): Promise<FileRecord[]> {
         await this.waitForInit();
 
         try {
@@ -160,6 +165,11 @@ class FileRecordDBService {
                     query = query.andWhere(`fileRecord.filteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
+
+            if (extensions && extensions.length) {
+                query = query.andWhere(`fileRecord.extension IN (:...extensions)`, { extensions });
+            }
+
             return await query.orderBy('fileRecord.createdAt', 'DESC').limit(limit).getMany();
         } catch (error) {
             console.log(error);

@@ -22,7 +22,8 @@ app.get('/api/v1/fileRecords/insert', async (req, res) => {
 });
 
 app.get('/api/v1/fileRecords/:query?', async (req, res) => {
-    const fileRecords = await fileRecordDBService.findBySearchQuery(req.params.query);
+    const extensions = req.query.ext ? String(req.query.ext).split(",") : undefined;
+    const fileRecords = await fileRecordDBService.findBySearchQuery(req.params.query, extensions);
     res.json(fileRecords);
 });
 
