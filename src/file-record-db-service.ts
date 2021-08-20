@@ -10,6 +10,11 @@ function prepareFilteredPath(path: string) {
     return path.split("/").splice(-2).join("/");
 }
 
+function preparePreFilteredPath(path: string) {
+    return path.split("/").splice(0, path.split("/").length - 2).join("/");
+}
+
+
 const sleepForMS = 5000;
 const MAX_SLEEP_RETRIES = 4;
 
@@ -18,6 +23,7 @@ class FileRecordDBService {
 
     constructor() {
         this.createInitialConnection();
+        this.createCustomIndexes();
     }
 
     async createInitialConnection() {
@@ -38,22 +44,44 @@ class FileRecordDBService {
         }
     }
 
+    async createCustomIndexes(): Promise<void> {
+        console.log("Creating indexes");
+        await this.execCustomQuery(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+        await this.execCustomQuery(`CREATE INDEX IF NOT EXISTS path_pre_filtered_trgm_gin_index ON file_record USING GIN("preFilteredPath" gin_trgm_ops);`);
+        await this.execCustomQuery(`CREATE INDEX IF NOT EXISTS path_filtered_trgm_gin_index ON file_record USING GIN("filteredPath" gin_trgm_ops);`);
+
+    }
+
+    // custom query with error handling
+    async execCustomQuery(query: string): Promise<void> {
+        await this.waitForInit();
+
+        try {
+            const connection = getConnection();
+            await connection.manager.query(query)
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
     async insertFileRecord(filePath: string, createdAt: Date, modifiedAt: Date, size: number): Promise<FileRecord> {
         await this.waitForInit();
 
         try {
             const connection = getConnection();
-            console.log("Inserting a new fileRecord into the database -", filePath);
+            // console.log("Inserting a new fileRecord into the database -", filePath);
 
             const fileRecord = new FileRecord();
             fileRecord.path = filePath;
             fileRecord.createdAt = createdAt;
             fileRecord.modifiedAt = modifiedAt;
-            fileRecord.filteredPath = prepareFilteredPath(filePath);
+            fileRecord.pathLower = filePath.toLowerCase();
+            fileRecord.filteredPath = prepareFilteredPath(filePath).toLowerCase();
+            fileRecord.preFilteredPath = preparePreFilteredPath(filePath).toLowerCase();
             fileRecord.size = size;
 
             await connection.manager.save(fileRecord); // this will upsert by the primary key - if exists it will update modified date, size etc
-            console.log("saved a new fileRecord:", fileRecord);
+            // console.log("saved a new fileRecord:", fileRecord);
             return fileRecord;
         } catch (error) {
             console.log(error);
@@ -75,11 +103,11 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQuery(searchStr: string): Promise<FileRecord[]> {
+    async findBySearchQuery(searchStr: string, limit: number = 50): Promise<FileRecord[]> {
         await this.waitForInit();
 
-        const filteredResults = await this.findBySearchQueryFiltered(searchStr);
-        const fullResults = await this.findBySearchQueryFull(searchStr);
+        const filteredResults = await this.findBySearchQueryFiltered(searchStr, limit);
+        const fullResults = await this.findBySearchQueryFull(searchStr, limit - filteredResults.length);
         const results = [...filteredResults, ...fullResults];
 
         // remove duplicates
@@ -91,7 +119,11 @@ class FileRecordDBService {
         return removedDuplicates;
     }
 
-    async findBySearchQueryFull(searchStr: string): Promise<FileRecord[]> {
+    async findBySearchQueryFull(searchStr: string, limit: number): Promise<FileRecord[]> {
+        if (limit <= 0) {
+            return [];
+        }
+
         await this.waitForInit();
 
         try {
@@ -100,12 +132,12 @@ class FileRecordDBService {
             searchStr.split(" ").forEach((word, index) => {
                 const variableName = `word${index}`;
                 if (index === 0) {
-                    query = query.where(`LOWER(fileRecord.path) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                    query = query.where(`fileRecord.preFilteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 } else {
-                    query = query.andWhere(`LOWER(fileRecord.path) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                    query = query.andWhere(`fileRecord.preFilteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
-            return await query.getMany();
+            return await query.orderBy('fileRecord.createdAt', 'DESC').limit(limit).getMany();
         } catch (error) {
             console.log(error);
         }
@@ -113,7 +145,7 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQueryFiltered(searchStr: string): Promise<FileRecord[]> {
+    async findBySearchQueryFiltered(searchStr: string, limit: number): Promise<FileRecord[]> {
         await this.waitForInit();
 
         try {
@@ -122,12 +154,12 @@ class FileRecordDBService {
             searchStr.split(" ").forEach((word, index) => {
                 const variableName = `word${index}`;
                 if (index === 0) {
-                    query = query.where(`LOWER(fileRecord.filteredPath) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                    query = query.where(`fileRecord.filteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 } else {
-                    query = query.andWhere(`LOWER(fileRecord.filteredPath) like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
+                    query = query.andWhere(`fileRecord.filteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
-            return await query.getMany();
+            return await query.orderBy('fileRecord.createdAt', 'DESC').limit(limit).getMany();
         } catch (error) {
             console.log(error);
         }
