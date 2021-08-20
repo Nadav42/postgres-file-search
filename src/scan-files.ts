@@ -13,7 +13,7 @@ class FolderScanner {
 
 	}
 
-	scanDirectoryRecursive(directoryPath: string, depth: number = 0, maxDepth: number = 250) {
+	scanDirectoryRecursive(directoryPath: string, quick: boolean, depth: number = 0, maxDepth: number = 250) {
 
 		if (depth > maxDepth) {
 			console.log("reached depth limit...");
@@ -26,24 +26,26 @@ class FolderScanner {
 
 		fs.readdir(directoryPath, (err, files) => {
 			if (!err) {
-				this.processFiles(directoryPath, files, depth, maxDepth);
+				this.processFiles(directoryPath, files, quick, depth, maxDepth);
 			} else {
 				console.log('Unable to scan directory: ' + err, directoryPath);
 			}
 		});
 	}
 
-	processFiles(directoryPath: string, files: string[], depth: number, maxDepth: number) {
+	processFiles(directoryPath: string, files: string[], quick: boolean, depth: number, maxDepth: number) {
 		for (let index = 0; index < files.length; index++) {
 			const file = files[index];
-			this.processFile(directoryPath, file, depth, maxDepth);
+			quick ? this.processFileQuick(directoryPath, file, depth, maxDepth) : this.processFileFull(directoryPath, file, depth, maxDepth);
 		}
 	}
 
-	processFile(directoryPath: string, file: string, depth: number, maxDepth: number) {
+	// quick scan because it will treat all paths with extensions as files and filter non allowed extensions
+	// this will however miss directories like Intellij 2021.3.4
+	processFileQuick(directoryPath: string, file: string, depth: number, maxDepth: number) {
 		const filePath = `${directoryPath}/${file}`;
 
-		if (!this.shouldScanFile(filePath)) {
+		if (!this.shouldScanFileQuick(filePath)) {
 			this.scannedFiles = this.scannedFiles + 1;
 			return;
 		}
@@ -59,7 +61,7 @@ class FolderScanner {
 					}
 				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
 					this.scannedFolders = this.scannedFolders + 1;
-					this.scanDirectoryRecursive(filePath, depth + 1, maxDepth);
+					this.scanDirectoryRecursive(filePath, true, depth + 1, maxDepth);
 				}
 			} else {
 				console.log(err);
@@ -67,13 +69,39 @@ class FolderScanner {
 		});
 	}
 
-	shouldScanFile(filePath: string) {
+	// full scan because it will check if a path is a file or directory even when it doesn't have an extension
+	processFileFull(directoryPath: string, file: string, depth: number, maxDepth: number) {
+		const filePath = `${directoryPath}/${file}`;
+
+		fs.stat(filePath, async (err, stats) => {
+			if (!err) {
+				if (stats.isFile()) {
+					this.scannedFiles = this.scannedFiles + 1;
+					if (this.fileHasAllowedExtension(filePath) && stats.size > MIN_SIZE_IN_BYTES) {
+						// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
+						await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+					}
+				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
+					this.scannedFolders = this.scannedFolders + 1;
+					this.scanDirectoryRecursive(filePath, false, depth + 1, maxDepth);
+				}
+			} else {
+				console.log(err);
+			}
+		});
+	}
+
+	shouldScanFileQuick(filePath: string) {
 		const hasExtension = filePath.includes(".");
 
 		if (!hasExtension) {
 			return true; // it's most likely a directory so continue the check... if directory or not..
 		}
 
+		return this.fileHasAllowedExtension(filePath);
+	}
+
+	fileHasAllowedExtension(filePath: string) {
 		const extension = filePath.split(".").reverse()[0].toLowerCase();
 		return ["exe", "zip", "msi", "rar", "tar", "tar.gz", "jar"].includes(extension);
 	}
@@ -87,7 +115,7 @@ const runProgram = async () => {
 	const start = Date.now();
 
 	const scanner = new FolderScanner();
-	scanner.scanDirectoryRecursive(directoryPath);
+	scanner.scanDirectoryRecursive(directoryPath, false);
 
 	process.on('exit', () => {
 		const end = Date.now();
