@@ -115,6 +115,8 @@ const runProgram = async () => {
 	const start = Date.now();
 
 	const scanner = new FolderScanner();
+	
+	// TODO: alternate between quick scans and full scans
 	scanner.scanDirectoryRecursive(directoryPath, true);
 	// scanner.scanDirectoryRecursive(directoryPath, false);
 
