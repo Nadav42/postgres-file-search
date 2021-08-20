@@ -115,7 +115,8 @@ const runProgram = async () => {
 	const start = Date.now();
 
 	const scanner = new FolderScanner();
-	scanner.scanDirectoryRecursive(directoryPath, false);
+	scanner.scanDirectoryRecursive(directoryPath, true);
+	// scanner.scanDirectoryRecursive(directoryPath, false);
 
 	process.on('exit', () => {
 		const end = Date.now();
