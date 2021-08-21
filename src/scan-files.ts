@@ -2,9 +2,17 @@ import fs from 'fs';
 import { fileRecordDBService, IFileRecordSaveOptions } from './file-record-db-service';
 
 //joining path of directory 
-const directoryPath = "C:/Program Files (x86)";
+const directoryPath = "C:/";
 const MIN_SIZE_IN_BYTES = 50 * 1024; // at least X kb
 
+// SCAN C with Quick Batch save:
+// batch = 500
+// finished C:/ in 26332.00ms
+// finished C:/ in 26742.00ms
+// finished C:/ in 25623.00ms
+
+// scan C quick no batch:
+// finished C:/ in 33017.00ms
 class FolderScanner {
 	scannedFiles: number = 0;
 	scannedFolders: number = 0;
@@ -17,7 +25,7 @@ class FolderScanner {
 	async saveBatch(saveOptions: IFileRecordSaveOptions) {
 		this.savingBatch.push(saveOptions);
 
-		if (this.savingBatch.length >= 1500) {
+		if (this.savingBatch.length >= 100) {
 			console.log("commit batch");
 			const temp = this.savingBatch;
 			this.savingBatch = [];
@@ -140,7 +148,7 @@ const runProgram = async () => {
 	const scanner = new FolderScanner();
 
 	// TODO: alternate between quick scans and full scans
-	scanner.scanDirectoryRecursive(directoryPath, false);
+	scanner.scanDirectoryRecursive(directoryPath, true);
 	// scanner.scanDirectoryRecursive(directoryPath, false);
 
 	process.on('exit', () => {
