@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { fileRecordDBService } from './file-record-db-service';
+import { fileRecordDBService, sleep } from './file-record-db-service';
 
 //joining path of directory 
 const directoryPath = "C:/";
@@ -135,12 +135,12 @@ class FolderScanner {
 		}
 	}
 
-	onStart() {
-		this.onStartCB && this.onStartCB();
+	async onStart() {
+		this.onStartCB && await this.onStartCB();
 	}
 
-	onFinish() {
-		this.onFinishCB && this.onFinishCB();
+	async onFinish() {
+		this.onFinishCB && await this.onFinishCB();
 		fileRecordDBService.close();
 	}
 }
@@ -152,11 +152,11 @@ const runProgram = async () => {
 
 	let start: number = 0;
 
-	const onStart = () => {
+	const onStart = async () => {
 		start = Date.now();
 	}
 
-	const onFinish = () => {
+	const onFinish = async () => {
 		const end = Date.now();
 		const timeTook = (end - start);
 		console.log(`finished ${directoryPath} in ${timeTook.toFixed(2)}ms`);
@@ -164,6 +164,9 @@ const runProgram = async () => {
 		console.log("exited");
 
 		// do whatever you want here, can save to DB how much time the scan took etc..
+
+		await sleep(1000);
+		console.log("fake mock save scan time to db...");
 	}
 
 	const scanner = new FolderScanner(onStart, onFinish);

@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { Connection, createConnection, getConnection } from "typeorm";
 import { FileRecord } from "./entity/FileRecord";
 
-function sleep(ms) {
+export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
