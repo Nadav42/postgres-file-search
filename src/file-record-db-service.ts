@@ -76,7 +76,6 @@ class FileRecordDBService {
             fileRecord.createdAt = createdAt;
             fileRecord.modifiedAt = modifiedAt;
             fileRecord.extension = filePath.includes(".") ? filePath.split(".").reverse()[0].toLowerCase() : "";
-            fileRecord.pathLower = filePath.toLowerCase();
             fileRecord.filteredPath = prepareFilteredPath(filePath).toLowerCase();
             fileRecord.preFilteredPath = preparePreFilteredPath(filePath).toLowerCase();
             fileRecord.size = size;

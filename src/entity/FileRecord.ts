@@ -13,9 +13,6 @@ export class FileRecord {
     path: string;
 
     @Column()
-    pathLower: string;
-
-    @Column()
     preFilteredPath: string;
 
     @Column()

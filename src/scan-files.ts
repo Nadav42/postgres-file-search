@@ -141,6 +141,7 @@ class FolderScanner {
 
 	onFinish() {
 		this.onFinishCB && this.onFinishCB();
+		fileRecordDBService.close();
 	}
 }
 
