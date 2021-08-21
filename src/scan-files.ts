@@ -2,7 +2,7 @@ import fs from 'fs';
 import { fileRecordDBService } from './file-record-db-service';
 
 //joining path of directory 
-const directoryPath = "C:/Program Files (x86)/Steam";
+const directoryPath = "C:/";
 const MIN_SIZE_IN_BYTES = 50 * 1024; // at least X kb
 
 class FolderScanner {
