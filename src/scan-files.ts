@@ -1,16 +1,29 @@
 import fs from 'fs';
-import { fileRecordDBService } from './file-record-db-service';
+import { fileRecordDBService, IFileRecordSaveOptions } from './file-record-db-service';
 
 //joining path of directory 
-const directoryPath = "C:/";
+const directoryPath = "C:/Program Files (x86)";
 const MIN_SIZE_IN_BYTES = 50 * 1024; // at least X kb
 
 class FolderScanner {
 	scannedFiles: number = 0;
 	scannedFolders: number = 0;
+	savingBatch: IFileRecordSaveOptions[] = [];
 
 	constructor() {
 
+	}
+
+	async saveBatch(saveOptions: IFileRecordSaveOptions) {
+		this.savingBatch.push(saveOptions);
+
+		if (this.savingBatch.length >= 1500) {
+			console.log("commit batch");
+			const temp = this.savingBatch;
+			this.savingBatch = [];
+			await fileRecordDBService.saveFileRecords(temp);
+			
+		}
 	}
 
 	scanDirectoryRecursive(directoryPath: string, quick: boolean, depth: number = 0, maxDepth: number = 250) {
@@ -57,7 +70,12 @@ class FolderScanner {
 					const hasExtension = filePath.includes(".");
 					if (hasExtension && stats.size > MIN_SIZE_IN_BYTES) {
 						// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
-						await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+						await this.saveBatch({
+							filePath,
+							createdAt: stats.birthtime,
+							modifiedAt: stats.mtime,
+							size: stats.size
+						}); // stats.ctime is changed time, created time is birthtime
 					}
 				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
 					this.scannedFolders = this.scannedFolders + 1;
@@ -79,7 +97,12 @@ class FolderScanner {
 					this.scannedFiles = this.scannedFiles + 1;
 					if (this.fileHasAllowedExtension(filePath) && stats.size > MIN_SIZE_IN_BYTES) {
 						// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
-						await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+						await this.saveBatch({
+							filePath,
+							createdAt: stats.birthtime,
+							modifiedAt: stats.mtime,
+							size: stats.size
+						}); // stats.ctime is changed time, created time is birthtime
 					}
 				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
 					this.scannedFolders = this.scannedFolders + 1;
@@ -115,9 +138,9 @@ const runProgram = async () => {
 	const start = Date.now();
 
 	const scanner = new FolderScanner();
-	
+
 	// TODO: alternate between quick scans and full scans
-	scanner.scanDirectoryRecursive(directoryPath, true);
+	scanner.scanDirectoryRecursive(directoryPath, false);
 	// scanner.scanDirectoryRecursive(directoryPath, false);
 
 	process.on('exit', () => {

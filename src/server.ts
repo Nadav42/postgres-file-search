@@ -17,7 +17,42 @@ app.get('/api/v1/fileRecords', async (req, res) => {
 });
 
 app.get('/api/v1/fileRecords/insert', async (req, res) => {
-    const fileRecord = fileRecordDBService.insertFileRecord("C:/Users/Nadav/Downloads/Test.exe", new Date(), new Date(), Math.floor(Math.random() * 1000));
+    const fileRecord = fileRecordDBService.saveFileRecords({
+        filePath: "C:/Users/Nadav/Downloads/Test1.exe",
+        createdAt: new Date(),
+        modifiedAt: new Date(),
+        size: Math.floor(Math.random() * 1000)
+    });
+    res.json(fileRecord);
+});
+
+app.get('/api/v1/fileRecords/bulk-insert', async (req, res) => {
+    const fileRecord = fileRecordDBService.saveFileRecords([
+        {
+            filePath: "C:/Users/Nadav/Downloads/Test1.exe",
+            createdAt: new Date(),
+            modifiedAt: new Date(),
+            size: Math.floor(Math.random() * 1000)
+        },
+        {
+            filePath: "C:/Users/Nadav/Downloads/Test2.exe",
+            createdAt: new Date(),
+            modifiedAt: new Date(),
+            size: Math.floor(Math.random() * 1000)
+        },
+        {
+            filePath: "C:/Users/Nadav/Downloads/Test3.exe",
+            createdAt: new Date(),
+            modifiedAt: new Date(),
+            size: Math.floor(Math.random() * 1000)
+        },
+        {
+            filePath: "C:/Users/Nadav/Downloads/Test4.exe",
+            createdAt: new Date(),
+            modifiedAt: new Date(),
+            size: Math.floor(Math.random() * 1000)
+        }
+    ]);
     res.json(fileRecord);
 });
 

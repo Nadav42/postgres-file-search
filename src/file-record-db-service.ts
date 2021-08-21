@@ -14,6 +14,13 @@ function preparePreFilteredPath(path: string) {
     return path.split("/").splice(0, path.split("/").length - 2).join("/");
 }
 
+export interface IFileRecordSaveOptions {
+    filePath: string;
+    createdAt: Date;
+    modifiedAt: Date;
+    size: number;
+}
+
 
 const sleepForMS = 5000;
 const MAX_SLEEP_RETRIES = 4;
@@ -64,26 +71,30 @@ class FileRecordDBService {
         }
     }
 
-    async insertFileRecord(filePath: string, createdAt: Date, modifiedAt: Date, size: number): Promise<FileRecord> {
+    private asFileRecord(saveOptions: IFileRecordSaveOptions): FileRecord {
+        const fileRecord = new FileRecord();
+        fileRecord.path = saveOptions.filePath;
+        fileRecord.createdAt = saveOptions.createdAt;
+        fileRecord.modifiedAt = saveOptions.modifiedAt;
+        fileRecord.extension = saveOptions.filePath.includes(".") ? saveOptions.filePath.split(".").reverse()[0].toLowerCase() : "";
+        fileRecord.pathLower = saveOptions.filePath.toLowerCase();
+        fileRecord.filteredPath = prepareFilteredPath(saveOptions.filePath).toLowerCase();
+        fileRecord.preFilteredPath = preparePreFilteredPath(saveOptions.filePath).toLowerCase();
+        fileRecord.size = saveOptions.size;
+        return fileRecord;
+    }
+
+    async saveFileRecords(saveOptionsArray: IFileRecordSaveOptions | IFileRecordSaveOptions[]): Promise<FileRecord[] | FileRecord> {
         await this.waitForInit();
 
         try {
             const connection = getConnection();
             // console.log("Inserting a new fileRecord into the database -", filePath);
+            const fileRecords = Array.isArray(saveOptionsArray) ? saveOptionsArray.map(saveOptions => this.asFileRecord(saveOptions)) : this.asFileRecord(saveOptionsArray);
 
-            const fileRecord = new FileRecord();
-            fileRecord.path = filePath;
-            fileRecord.createdAt = createdAt;
-            fileRecord.modifiedAt = modifiedAt;
-            fileRecord.extension = filePath.includes(".") ? filePath.split(".").reverse()[0].toLowerCase() : "";
-            fileRecord.pathLower = filePath.toLowerCase();
-            fileRecord.filteredPath = prepareFilteredPath(filePath).toLowerCase();
-            fileRecord.preFilteredPath = preparePreFilteredPath(filePath).toLowerCase();
-            fileRecord.size = size;
-
-            await connection.manager.save(fileRecord); // this will upsert by the primary key - if exists it will update modified date, size etc
+            await connection.manager.save(fileRecords); // this will upsert by the primary key - if exists it will update modified date, size etc
             // console.log("saved a new fileRecord:", fileRecord);
-            return fileRecord;
+            return fileRecords;
         } catch (error) {
             console.log(error);
         }
