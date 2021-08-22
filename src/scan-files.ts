@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { fileRecordDBService, sleep } from './file-record-db-service';
+import walk from 'walkdir';
 
 //joining path of directory 
 const directoryPath = "C:/";
@@ -19,7 +20,22 @@ class FolderScanner {
 
 	scanDirectory(directoryPath: string, quick: boolean) {
 		this.onStart();
-		this.scanDirectoryRecursive(directoryPath, quick);
+		//this.scanDirectoryRecursive(directoryPath, quick);
+
+		const emitter = walk(directoryPath);
+
+		emitter.on('file', async (filePath, stats) => {
+			this.scannedFiles = this.scannedFiles + 1;
+
+			if (this.fileHasAllowedExtension(filePath) && stats.size > MIN_SIZE_IN_BYTES) {
+				// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
+				await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+			}
+		});
+
+		emitter.on('end', () => {
+			this.onFinish();
+		});
 	}
 
 	private scanDirectoryRecursive(directoryPath: string, quick: boolean, depth: number = 0, maxDepth: number = 250) {
@@ -172,7 +188,7 @@ const runProgram = async () => {
 	const scanner = new FolderScanner(onStart, onFinish);
 
 	// TODO: alternate between quick scans and full scans?
-	scanner.scanDirectory(directoryPath, true);
+	scanner.scanDirectory(directoryPath, false);
 	// scanner.scanDirectory(directoryPath, false);
 }
 
