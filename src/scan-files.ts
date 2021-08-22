@@ -113,12 +113,18 @@ class FolderScanner {
 			return true; // it's most likely a directory so continue the check... if directory or not..
 		}
 
-		return this.fileHasAllowedExtension(filePath);
+		return this.fileHasAllowedExtensionOrNumeric(filePath);
 	}
 
 	fileHasAllowedExtension(filePath: string) {
 		const extension = filePath.split(".").reverse()[0].toLowerCase();
 		return ["exe", "zip", "msi", "rar", "tar", "tar.gz", "jar"].includes(extension);
+	}
+
+	fileHasAllowedExtensionOrNumeric(filePath: string) {
+		const extension = filePath.split(".").reverse()[0].toLowerCase();
+		const isNumeric = extension.length <= 4 && /^\d+$/.test(extension); // to not miss intellij folders like intellij.2021.3.1
+		return isNumeric || ["exe", "zip", "msi", "rar", "tar", "tar.gz", "jar"].includes(extension);
 	}
 
 	markProcessingPath(filePath: string) {
