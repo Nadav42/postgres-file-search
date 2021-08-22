@@ -4,6 +4,7 @@ import { fileRecordDBService, sleep } from './file-record-db-service';
 //joining path of directory 
 const directoryPath = "C:/";
 const MIN_SIZE_IN_BYTES = 50 * 1024; // at least X kb
+const ALLOWED_EXTENSIONS = ["exe", "zip", "msi", "rar", "tar", "tar.gz", "jar"];
 
 class FolderScanner {
 	scannedFiles: number = 0;
@@ -50,7 +51,7 @@ class FolderScanner {
 			const file = files[index];
 			const filePath = `${directoryPath}/${file}`;
 			this.markProcessingPath(filePath);
-			quick ? this.processFileQuick(filePath, depth, maxDepth) : this.processFileFull(filePath, depth, maxDepth);
+			quick ? this.processFileQuick(filePath, depth, maxDepth) : this.processFile(filePath, false, depth, maxDepth);
 		}
 	}
 
@@ -63,29 +64,11 @@ class FolderScanner {
 			return;
 		}
 
-		fs.stat(filePath, async (err, stats) => {
-			if (!err) {
-				if (stats.isFile()) {
-					this.scannedFiles = this.scannedFiles + 1;
-					const hasExtension = filePath.includes(".");
-					if (hasExtension && stats.size > MIN_SIZE_IN_BYTES) {
-						// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
-						await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
-					}
-					this.unmarkProcessingPath(filePath); // only unmark if it's a file, if it's a directory then the scanDirectory func will unmark it
-				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
-					this.scannedFolders = this.scannedFolders + 1;
-					this.scanDirectoryRecursive(filePath, true, depth + 1, maxDepth);
-				}
-			} else {
-				console.log(err);
-				this.unmarkProcessingPath(filePath);
-			}
-		});
+		this.processFile(filePath, true, depth, maxDepth);
 	}
 
 	// full scan because it will check if a path is a file or directory even when it doesn't have an extension
-	processFileFull(filePath: string, depth: number, maxDepth: number) {
+	processFile(filePath: string, quick: boolean, depth: number, maxDepth: number) {
 		fs.stat(filePath, async (err, stats) => {
 			if (!err) {
 				if (stats.isFile()) {
@@ -97,7 +80,7 @@ class FolderScanner {
 					this.unmarkProcessingPath(filePath); // only unmark if it's a file, if it's a directory then the scanDirectory func will unmark it
 				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
 					this.scannedFolders = this.scannedFolders + 1;
-					this.scanDirectoryRecursive(filePath, false, depth + 1, maxDepth);
+					this.scanDirectoryRecursive(filePath, quick, depth + 1, maxDepth);
 				}
 			} else {
 				console.log(err);
@@ -113,18 +96,20 @@ class FolderScanner {
 			return true; // it's most likely a directory so continue the check... if directory or not..
 		}
 
-		return this.fileHasAllowedExtensionOrNumeric(filePath);
+		return this.fileHasQuickScanExtension(filePath);
 	}
 
+	// should save to db or not
 	fileHasAllowedExtension(filePath: string) {
 		const extension = filePath.split(".").reverse()[0].toLowerCase();
-		return ["exe", "zip", "msi", "rar", "tar", "tar.gz", "jar"].includes(extension);
+		return ALLOWED_EXTENSIONS.includes(extension);
 	}
 
-	fileHasAllowedExtensionOrNumeric(filePath: string) {
+	// should check if directory in quickscan
+	fileHasQuickScanExtension(filePath: string) {
 		const extension = filePath.split(".").reverse()[0].toLowerCase();
 		const isNumeric = extension.length <= 4 && /^\d+$/.test(extension); // to not miss intellij folders like intellij.2021.3.1
-		return isNumeric || ["exe", "zip", "msi", "rar", "tar", "tar.gz", "jar"].includes(extension);
+		return isNumeric || ALLOWED_EXTENSIONS.includes(extension);
 	}
 
 	markProcessingPath(filePath: string) {
