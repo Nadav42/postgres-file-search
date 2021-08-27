@@ -6,11 +6,11 @@ export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function prepareFilteredPath(path: string) {
+export function prepareFilteredPath(path: string) {
     return path.split("/").splice(-2).join("/");
 }
 
-function preparePreFilteredPath(path: string) {
+export function preparePreFilteredPath(path: string) {
     return path.split("/").splice(0, path.split("/").length - 2).join("/");
 }
 
