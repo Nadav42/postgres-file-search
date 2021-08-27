@@ -30,32 +30,40 @@ class ElasticSearchDBService {
 	}
 
 	async insertRecord(filePath: string, createdAt: Date, modifiedAt: Date, size: number) {
-		await this.client.index<IESFileRecord>({
-			index: "file-records",
+		await this.client.update({
+			index: "file-records2",
+			id: filePath,
 			body: {
-				path: filePath,
-				prefixPath: preparePreFilteredPath(filePath).toLowerCase(),
-				suffixPath: prepareFilteredPath(filePath).toLowerCase(),
-				extension: filePath.includes(".") ? filePath.split(".").reverse()[0].toLowerCase() : "",
-				createdAt: createdAt,
-				modifiedAt: modifiedAt,
-				size: size
+				doc: {
+					path: filePath,
+					prefixPath: preparePreFilteredPath(filePath).toLowerCase(),
+					suffixPath: prepareFilteredPath(filePath).toLowerCase(),
+					extension: filePath.includes(".") ? filePath.split(".").reverse()[0].toLowerCase() : "",
+					createdAt: createdAt,
+					modifiedAt: modifiedAt,
+					size: size
+				},
+				doc_as_upsert: true
 			}
 		});
 	}
 
 	async refreshIndex() {
-		await this.client.indices.refresh({ index: "file-records" }); // We need to force an index refresh at this point, otherwise we will not get any result in the consequent search
+		await this.client.indices.refresh({ index: "file-records2" }); // We need to force an index refresh at this point, otherwise we will not get any result in the consequent search
 	}
 
 	async getRecordsByPath(pathSearch: string): Promise<IESFileRecord[]> {
+		// use like: "query": "(setup OR *setup*) AND (chrome OR *chrome*)"
+		const words = pathSearch.split(" ");
+		const searchQuery = words.map(word => `(${word} OR *${word}*)`).join(" AND ");
+
 		const searchData = await this.client.search({
-			index: "file-records",
+			index: "file-records2",
 			body: {
 				query: {
 					query_string: {
 						fields: ["suffixPath"],
-						query: `${pathSearch} | *${pathSearch}*`
+						query: searchQuery
 					}
 				},
 				size: 100,
@@ -70,13 +78,14 @@ class ElasticSearchDBService {
 	}
 }
 
-const test = async () => {
-	const elasticSearchDBService = new ElasticSearchDBService();
-	await elasticSearchDBService.insertRecord("C:/Users/Nadav/Test2/chrome5.exe", new Date(), new Date(), Math.floor(Math.random() * 1000));
-	await elasticSearchDBService.refreshIndex();
+export const elasticSearchDBService = new ElasticSearchDBService();
 
-	const searchResults = await elasticSearchDBService.getRecordsByPath("test2");
-	console.log(searchResults);
-}
+// const test = async () => {
+// 	await elasticSearchDBService.insertRecord("C:/Users/Nadav/Test2/chrome5.exe", new Date(), new Date(), Math.floor(Math.random() * 1000));
+// 	await elasticSearchDBService.refreshIndex();
 
-test();
+// 	const searchResults = await elasticSearchDBService.getRecordsByPath("test2");
+// 	console.log(searchResults);
+// }
+
+// test();

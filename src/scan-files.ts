@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { fileRecordDBService, sleep } from './file-record-db-service';
+import { elasticSearchDBService } from './elastic-search-db-service';
 
 //joining path of directory 
 const directoryPath = "C:/";
@@ -76,6 +77,7 @@ class FolderScanner {
 					if (this.fileHasAllowedExtension(filePath) && stats.size > MIN_SIZE_IN_BYTES) {
 						// console.log(filePath, stats.birthtime, stats.mtime, stats.size);
 						await fileRecordDBService.insertFileRecord(filePath, stats.birthtime, stats.mtime, stats.size); // stats.ctime is changed time, created time is birthtime
+						await elasticSearchDBService.insertRecord(filePath, stats.birthtime, stats.mtime, stats.size);
 					}
 					this.unmarkProcessingPath(filePath); // only unmark if it's a file, if it's a directory then the scanDirectory func will unmark it
 				} else if (stats.isDirectory() && !stats.isSymbolicLink()) {
