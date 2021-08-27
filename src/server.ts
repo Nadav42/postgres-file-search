@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
 import { fileRecordDBService } from './file-record-db-service';
+import { elasticSearchDBService } from './elastic-search-db-service';
 
 const app = express();
 const PORT = 8000;
@@ -24,6 +25,12 @@ app.get('/api/v1/fileRecords/insert', async (req, res) => {
 app.get('/api/v1/fileRecords/:query?', async (req, res) => {
     const extensions = req.query.ext ? String(req.query.ext).split(",") : undefined;
     const fileRecords = await fileRecordDBService.findBySearchQuery(req.params.query, extensions);
+    res.json(fileRecords);
+});
+
+app.get('/api/v1/fileRecordsElastic/:query?', async (req, res) => {
+    const extensions = req.query.ext ? String(req.query.ext).split(",") : undefined;
+    const fileRecords = await elasticSearchDBService.findBySearchQuery(req.params.query);
     res.json(fileRecords);
 });
 

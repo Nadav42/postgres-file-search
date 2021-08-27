@@ -52,7 +52,7 @@ class ElasticSearchDBService {
 		await this.client.indices.refresh({ index: "file-records2" }); // We need to force an index refresh at this point, otherwise we will not get any result in the consequent search
 	}
 
-	async getRecordsByPath(pathSearch: string): Promise<IESFileRecord[]> {
+	async findBySearchQuery(pathSearch: string): Promise<IESFileRecord[]> {
 		// use like: "query": "(setup OR *setup*) AND (chrome OR *chrome*)"
 		const words = pathSearch.split(" ");
 		const searchQuery = words.map(word => `(${word} OR *${word}*)`).join(" AND ");
@@ -68,13 +68,13 @@ class ElasticSearchDBService {
 				},
 				size: 100,
 				from: 0,
-				sort: ["createdAt"]
+				sort: [{ "createdAt": { "order": "desc" } }]
 			}
 		})
 
 		//console.log(searchData);
 		//console.log(searchData.body.hits.hits);
-		return searchData?.body?.hits?.hits || [];
+		return (searchData?.body?.hits?.hits || []).map(hit => hit._source);
 	}
 }
 
