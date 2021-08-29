@@ -1,9 +1,9 @@
 import { Entity, PrimaryColumn, Column, Index } from "typeorm";
 
- // full path: c:/program files/google/chrome/chrome-87/setup.exe
- // preFilteredPath: c:/program files/google/chrome
- // filteredPath: chrome-87/setup.exe
- // preFilteredPath + filteredPath = full path
+// full path: c:/program files/google/chrome/chrome-87/setup.exe
+// preFilteredPath: c:/program files/google/chrome
+// filteredPath: chrome-87/setup.exe
+// preFilteredPath + filteredPath = full path
 
 @Entity()
 @Index("path_pre_filtered_trgm_gin_index", { synchronize: false })
@@ -13,13 +13,14 @@ export class FileRecord {
     path: string;
 
     @Column()
-    pathLower: string;
-
-    @Column()
     preFilteredPath: string;
 
     @Column()
     filteredPath: string;
+
+    @Index()
+    @Column()
+    extension: string;
 
     @Column()
     createdAt: Date;
@@ -27,6 +28,6 @@ export class FileRecord {
     @Column()
     modifiedAt: Date;
 
-    @Column()
+    @Column({ type: 'bigint' })
     size: number;
 }

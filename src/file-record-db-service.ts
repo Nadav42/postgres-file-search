@@ -2,15 +2,15 @@ import "reflect-metadata";
 import { Connection, createConnection, getConnection } from "typeorm";
 import { FileRecord } from "./entity/FileRecord";
 
-function sleep(ms) {
+export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function prepareFilteredPath(path: string) {
+export function prepareFilteredPath(path: string) {
     return path.split("/").splice(-2).join("/");
 }
 
-function preparePreFilteredPath(path: string) {
+export function preparePreFilteredPath(path: string) {
     return path.split("/").splice(0, path.split("/").length - 2).join("/");
 }
 
@@ -69,19 +69,19 @@ class FileRecordDBService {
 
         try {
             const connection = getConnection();
-            console.log("Inserting a new fileRecord into the database -", filePath);
+            // console.log("Inserting a new fileRecord into the database -", filePath);
 
             const fileRecord = new FileRecord();
             fileRecord.path = filePath;
             fileRecord.createdAt = createdAt;
             fileRecord.modifiedAt = modifiedAt;
-            fileRecord.pathLower = filePath.toLowerCase();
+            fileRecord.extension = filePath.includes(".") ? filePath.split(".").reverse()[0].toLowerCase() : "";
             fileRecord.filteredPath = prepareFilteredPath(filePath).toLowerCase();
             fileRecord.preFilteredPath = preparePreFilteredPath(filePath).toLowerCase();
             fileRecord.size = size;
 
             await connection.manager.save(fileRecord); // this will upsert by the primary key - if exists it will update modified date, size etc
-            console.log("saved a new fileRecord:", fileRecord);
+            // console.log("saved a new fileRecord:", fileRecord);
             return fileRecord;
         } catch (error) {
             console.log(error);
@@ -103,11 +103,11 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQuery(searchStr: string, limit: number = 50): Promise<FileRecord[]> {
+    async findBySearchQuery(searchStr: string, extensions: string[] | undefined, limit: number = 50): Promise<FileRecord[]> {
         await this.waitForInit();
 
-        const filteredResults = await this.findBySearchQueryFiltered(searchStr, limit);
-        const fullResults = await this.findBySearchQueryFull(searchStr, limit - filteredResults.length);
+        const filteredResults = await this.findBySearchQueryFiltered(searchStr, extensions, limit);
+        const fullResults = await this.findBySearchQueryFull(searchStr, extensions, limit - filteredResults.length);
         const results = [...filteredResults, ...fullResults];
 
         // remove duplicates
@@ -119,7 +119,7 @@ class FileRecordDBService {
         return removedDuplicates;
     }
 
-    async findBySearchQueryFull(searchStr: string, limit: number): Promise<FileRecord[]> {
+    async findBySearchQueryFull(searchStr: string, extensions: string[] | undefined, limit: number): Promise<FileRecord[]> {
         if (limit <= 0) {
             return [];
         }
@@ -137,6 +137,11 @@ class FileRecordDBService {
                     query = query.andWhere(`fileRecord.preFilteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
+
+            if (extensions && extensions.length) {
+                query = query.andWhere(`fileRecord.extension IN (:...extensions)`, { extensions });
+            }
+
             return await query.orderBy('fileRecord.createdAt', 'DESC').limit(limit).getMany();
         } catch (error) {
             console.log(error);
@@ -145,7 +150,7 @@ class FileRecordDBService {
         return [];
     }
 
-    async findBySearchQueryFiltered(searchStr: string, limit: number): Promise<FileRecord[]> {
+    async findBySearchQueryFiltered(searchStr: string, extensions: string[] | undefined, limit: number): Promise<FileRecord[]> {
         await this.waitForInit();
 
         try {
@@ -159,6 +164,11 @@ class FileRecordDBService {
                     query = query.andWhere(`fileRecord.filteredPath like LOWER(:${variableName})`, { [variableName]: `%${word}%` });
                 }
             });
+
+            if (extensions && extensions.length) {
+                query = query.andWhere(`fileRecord.extension IN (:...extensions)`, { extensions });
+            }
+
             return await query.orderBy('fileRecord.createdAt', 'DESC').limit(limit).getMany();
         } catch (error) {
             console.log(error);
